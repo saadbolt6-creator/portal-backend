@@ -117,6 +117,9 @@ router.put('/change-password', protect, requireEmailVerification, [
 
     // Generate renewed token
     const newToken = generateTokenWithVersion(user._id, user.tokenVersion);
+  }
+}
+)
 // @desc    Get all users (Admin only)
 // @route   GET /api/user/all
 // @access  Private/Admin
