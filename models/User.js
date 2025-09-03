@@ -80,7 +80,8 @@ const userSchema = new mongoose.Schema({
   loginHistory: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'LoginHistory'
-  }]
+  }],
+  currentIpAddress: String
 }, {
   timestamps: true
 });
@@ -131,57 +132,6 @@ userSchema.methods.generatePasswordResetToken = function() {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   
   return resetToken;
-};
-
-// Generate 2FA secret
-userSchema.methods.generateTwoFactorSecret = function() {
-  const secret = speakeasy.generateSecret({
-    name: `Saher Flow Solutions (${this.email})`,
-    issuer: 'Saher Flow Solutions',
-    length: 32
-  });
-  
-  this.twoFactorSecret = secret.base32;
-  return secret;
-};
-
-// Verify 2FA token
-userSchema.methods.verifyTwoFactorToken = function(token) {
-  return speakeasy.totp.verify({
-    secret: this.twoFactorSecret,
-    encoding: 'base32',
-    token: token,
-    window: 2 // Allow 2 time steps (60 seconds) of variance
-  });
-};
-
-// Generate backup codes
-userSchema.methods.generateBackupCodes = function() {
-  const codes = [];
-  for (let i = 0; i < 10; i++) {
-    codes.push({
-      code: crypto.randomBytes(4).toString('hex').toUpperCase(),
-      used: false
-    });
-  }
-  this.backupCodes = codes;
-  return codes.map(c => c.code);
-};
-
-// Use backup code
-userSchema.methods.useBackupCode = function(code) {
-  const backupCode = this.backupCodes.find(c => c.code === code.toUpperCase() && !c.used);
-  if (backupCode) {
-    backupCode.used = true;
-    return true;
-  }
-  return false;
-};
-
-// Increment token version (invalidates all existing tokens)
-userSchema.methods.invalidateAllTokens = function() {
-  this.tokenVersion += 1;
-  return this.save({ validateBeforeSave: false });
 };
 
 module.exports = mongoose.model('User', userSchema);

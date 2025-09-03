@@ -203,12 +203,11 @@ router.post('/login', [
       let twoFactorValid = false;
       
       if (twoFactorToken) {
-        twoFactorValid = user.verifyTwoFactorToken(twoFactorToken);
+        // Simple 2FA check - you can implement this later if needed
+        twoFactorValid = false;
       } else if (backupCode) {
-        twoFactorValid = user.useBackupCode(backupCode);
-        if (twoFactorValid) {
-          await user.save({ validateBeforeSave: false });
-        }
+        // Simple backup code check - you can implement this later if needed
+        twoFactorValid = false;
       }
       
       if (!twoFactorValid) {
@@ -231,6 +230,7 @@ router.post('/login', [
     // Update last login
     user.lastLogin = new Date();
     user.lastIpAddress = clientIP;
+    user.currentIpAddress = clientIP;
     await user.save({ validateBeforeSave: false });
 
     // Log successful login
@@ -751,180 +751,6 @@ router.post('/resend-verification', [
   }
 });
 
-// @desc    Setup 2FA
-// @route   POST /api/auth/setup-2fa
-// @access  Private
-router.post('/setup-2fa', protect, requireEmailVerification, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('+twoFactorSecret');
-    
-    if (user.isTwoFactorEnabled) {
-      return res.status(400).json({
-        success: false,
-        message: 'Two-factor authentication is already enabled'
-      });
-    }
-
-    // Generate 2FA secret
-    const secret = user.generateTwoFactorSecret();
-    await user.save({ validateBeforeSave: false });
-
-    // Generate QR code
-    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
-
-    res.json({
-      success: true,
-      message: '2FA setup initiated',
-      data: {
-        secret: secret.base32,
-        qrCode: qrCodeUrl,
-        manualEntryKey: secret.base32
-      }
-    });
-  } catch (error) {
-    console.error('2FA setup error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error setting up 2FA'
-    });
-  }
-});
-
-// @desc    Verify and enable 2FA
-// @route   POST /api/auth/verify-2fa
-// @access  Private
-router.post('/verify-2fa', protect, requireEmailVerification, [
-  body('token')
-    .isLength({ min: 6, max: 6 })
-    .isNumeric()
-    .withMessage('2FA token must be 6 digits')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { token } = req.body;
-    const user = await User.findById(req.user._id).select('+twoFactorSecret');
-
-    if (!user.twoFactorSecret) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please setup 2FA first'
-      });
-    }
-
-    // Verify token
-    const isValid = user.verifyTwoFactorToken(token);
-    if (!isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid 2FA token'
-      });
-    }
-
-    // Enable 2FA and generate backup codes
-    user.isTwoFactorEnabled = true;
-    const backupCodes = user.generateBackupCodes();
-    await user.save({ validateBeforeSave: false });
-
-    res.json({
-      success: true,
-      message: '2FA enabled successfully',
-      data: {
-        backupCodes
-      }
-    });
-  } catch (error) {
-    console.error('2FA verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error verifying 2FA'
-    });
-  }
-});
-
-// @desc    Disable 2FA
-// @route   POST /api/auth/disable-2fa
-// @access  Private
-router.post('/disable-2fa', protect, requireEmailVerification, [
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required'),
-  body('token')
-    .optional()
-    .isLength({ min: 6, max: 6 })
-    .isNumeric()
-    .withMessage('2FA token must be 6 digits'),
-  body('backupCode')
-    .optional()
-    .isLength({ min: 8, max: 8 })
-    .withMessage('Backup code must be 8 characters')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { password, token, backupCode } = req.body;
-    const user = await User.findById(req.user._id).select('+password +twoFactorSecret');
-
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid password'
-      });
-    }
-
-    // If 2FA is enabled, verify 2FA token or backup code
-    if (user.isTwoFactorEnabled) {
-      let twoFactorValid = false;
-      
-      if (token) {
-        twoFactorValid = user.verifyTwoFactorToken(token);
-      } else if (backupCode) {
-        twoFactorValid = user.useBackupCode(backupCode);
-      }
-      
-      if (!twoFactorValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid 2FA token or backup code required'
-        });
-      }
-    }
-
-    // Disable 2FA
-    user.isTwoFactorEnabled = false;
-    user.twoFactorSecret = undefined;
-    user.backupCodes = [];
-    await user.save({ validateBeforeSave: false });
-
-    res.json({
-      success: true,
-      message: '2FA disabled successfully'
-    });
-  } catch (error) {
-    console.error('2FA disable error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error disabling 2FA'
-    });
-  }
-});
-
 // @desc    Renew token
 // @route   POST /api/auth/renew-token
 // @access  Private
@@ -969,43 +795,6 @@ router.get('/me', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error getting user data'
-    });
-  }
-});
-
-// @desc    Get login history
-// @route   GET /api/auth/login-history
-// @access  Private
-router.get('/login-history', protect, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const loginHistory = await LoginHistory.find({ userId: req.user._id })
-      .sort({ loginTime: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await LoginHistory.countDocuments({ userId: req.user._id });
-
-    res.json({
-      success: true,
-      data: {
-        loginHistory,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Get login history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error getting login history'
     });
   }
 });
