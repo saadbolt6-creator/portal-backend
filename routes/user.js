@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
+const LoginHistory = require('../models/LoginHistory');
 const { protect, admin, generateTokenWithVersion } = require('../middleware/auth');
 const { requireEmailVerification } = require('../middleware/emailVerification');
 
