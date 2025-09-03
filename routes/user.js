@@ -117,43 +117,6 @@ router.put('/change-password', protect, requireEmailVerification, [
 
     // Generate renewed token
     const newToken = generateTokenWithVersion(user._id, user.tokenVersion);
-    res.json({
-      success: true,
-      message: 'Password changed successfully',
-      data: {
-        token: newToken
-      }
-    });
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error changing password'
-    });
-  }
-});
-
-// @desc    Delete user account
-// @route   DELETE /api/user/account
-// @access  Private
-router.delete('/account', protect, requireEmailVerification, async (req, res) => {
-  try {
-    // Soft delete - deactivate account
-    await User.findByIdAndUpdate(req.user._id, { isActive: false });
-
-    res.json({
-      success: true,
-      message: 'Account deactivated successfully'
-    });
-  } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting account'
-    });
-  }
-});
-
 // @desc    Get all users (Admin only)
 // @route   GET /api/user/all
 // @access  Private/Admin

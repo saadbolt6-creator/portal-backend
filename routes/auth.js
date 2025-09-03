@@ -261,7 +261,8 @@ router.post('/login', [
           company: user.company,
           role: user.role,
           isEmailVerified: user.isEmailVerified,
-          lastLogin: user.lastLogin
+          lastLogin: user.lastLogin,
+          ipAddress: clientIP
         }
       }
     });
