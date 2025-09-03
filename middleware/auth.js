@@ -89,6 +89,13 @@ const generateTokenWithVersion = (userId, tokenVersion) => {
   );
 };
 
+// Generate token (legacy support)
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
+};
+
 // Admin only access
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
@@ -101,4 +108,4 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin, generateTokenWithVersion, getClientIP };
+module.exports = { protect, admin, generateTokenWithVersion, generateToken, getClientIP };
