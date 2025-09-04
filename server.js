@@ -9,7 +9,6 @@ dotenv.config();
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
-const companyRoutes = require('./routes/company');
 
 const app = express();
 
@@ -24,7 +23,6 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/company', companyRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

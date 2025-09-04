@@ -1,14 +1,10 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
-const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
 const sendEmail = require('../utils/sendEmail');
 const { getWelcomeEmailTemplate, getPasswordResetEmailTemplate } = require('../utils/emailTemplates');
 const { protect, generateTokenWithVersion, generateToken, getClientIP } = require('../middleware/auth');
-const { validateCompanyDomain } = require('../middleware/domainValidation');
 const User = require('../models/User');
-const Company = require('../models/Company');
 const LoginHistory = require('../models/LoginHistory');
 
 const router = express.Router();
@@ -16,7 +12,7 @@ const router = express.Router();
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-router.post('/register', validateCompanyDomain, [
+router.post('/register', [
   body('firstName')
     .trim()
     .isLength({ min: 2, max: 50 })
@@ -66,7 +62,7 @@ router.post('/register', validateCompanyDomain, [
       firstName,
       lastName,
       email,
-      company: req.companyInfo.name, // Use company name from database
+      company,
       password,
       isEmailVerified: false
     });
