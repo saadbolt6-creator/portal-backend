@@ -316,8 +316,6 @@ router.get('/all', protect, admin, async (req, res) => {
         pagination: {
           page,
           limit,
-          twoFactorEnabled: user.twoFactorEnabled,
-          twoFactorEnabled: user.twoFactorEnabled,
           total,
           pages: Math.ceil(total / limit)
         }
