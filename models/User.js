@@ -143,11 +143,23 @@ userSchema.methods.generate2FASecret = function() {
 
 // Verify 2FA token
 userSchema.methods.verify2FAToken = function(token) {
+  if (!this.twoFactorSecret) {
+    return false;
+  }
+  
+  // Clean the token
+  const cleanToken = token.toString().replace(/\D/g, '');
+  
+  if (cleanToken.length !== 6) {
+    return false;
+  }
+  
   return speakeasy.totp.verify({
     secret: this.twoFactorSecret,
     encoding: 'base32',
-    token: token,
-    window: 2
+    token: cleanToken,
+    window: 2, // Allow 2 time steps before/after current time (60 seconds total window)
+    step: 30 // 30 second time step
   });
 };
 

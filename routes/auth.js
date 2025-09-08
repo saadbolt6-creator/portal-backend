@@ -160,7 +160,8 @@ router.post('/login', [
   body('twoFactorToken')
     .optional()
     .isLength({ min: 6, max: 6 })
-    .withMessage('2FA token must be 6 digits')
+    .isNumeric()
+    .withMessage('2FA token must be exactly 6 digits')
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -224,13 +225,14 @@ router.post('/login', [
         }
       } else if (twoFactorToken) {
         // Verify TOTP token
-        twoFactorValid = user.verify2FAToken(twoFactorToken);
+        const cleanToken = twoFactorToken.toString().replace(/\D/g, '');
+        twoFactorValid = user.verify2FAToken(cleanToken);
       }
 
       if (!twoFactorValid) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid 2FA token or backup code'
+          message: 'Invalid 2FA token or backup code. Please ensure you are using the latest code from your authenticator app.'
         });
       }
     }
@@ -319,7 +321,10 @@ router.post('/setup-2fa', protect, requireEmailVerification, async (req, res) =>
       data: {
         secret: secret.base32,
         qrCode: qrCodeUrl,
-        manualEntryKey: secret.base32
+        manualEntryKey: secret.base32,
+        issuer: 'Saher Flow Solutions',
+        accountName: user.email,
+        instructions: 'Scan the QR code with your authenticator app or manually enter the secret key. Then enter the 6-digit code to verify and enable 2FA.'
       }
     });
   } catch (error) {
@@ -337,7 +342,8 @@ router.post('/setup-2fa', protect, requireEmailVerification, async (req, res) =>
 router.post('/verify-2fa', protect, requireEmailVerification, [
   body('token')
     .isLength({ min: 6, max: 6 })
-    .withMessage('Token must be 6 digits')
+    .isNumeric()
+    .withMessage('Token must be exactly 6 digits')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -350,6 +356,17 @@ router.post('/verify-2fa', protect, requireEmailVerification, [
     }
 
     const { token } = req.body;
+    
+    // Clean the token - remove any spaces or non-numeric characters
+    const cleanToken = token.toString().replace(/\D/g, '');
+    
+    if (cleanToken.length !== 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token must be exactly 6 digits'
+      });
+    }
+    
     const user = await User.findById(req.user._id).select('+twoFactorSecret');
 
     if (user.twoFactorEnabled) {
@@ -367,12 +384,12 @@ router.post('/verify-2fa', protect, requireEmailVerification, [
     }
 
     // Verify the token
-    const isValid = user.verify2FAToken(token);
+    const isValid = user.verify2FAToken(cleanToken);
     
     if (!isValid) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid 2FA token'
+        message: 'Invalid 2FA token. Please ensure you are using the latest code from your authenticator app.'
       });
     }
 
@@ -407,7 +424,8 @@ router.post('/disable-2fa', protect, requireEmailVerification, [
   body('token')
     .optional()
     .isLength({ min: 6, max: 6 })
-    .withMessage('Token must be 6 digits'),
+    .isNumeric()
+    .withMessage('Token must be exactly 6 digits'),
   body('backupCode')
     .optional()
     .isLength({ min: 8, max: 8 })
@@ -448,7 +466,8 @@ router.post('/disable-2fa', protect, requireEmailVerification, [
     if (backupCode) {
       twoFactorValid = user.verifyBackupCode(backupCode);
     } else if (token) {
-      twoFactorValid = user.verify2FAToken(token);
+      const cleanToken = token.toString().replace(/\D/g, '');
+      twoFactorValid = user.verify2FAToken(cleanToken);
     } else {
       return res.status(400).json({
         success: false,
@@ -492,7 +511,8 @@ router.post('/generate-backup-codes', protect, requireEmailVerification, [
   body('token')
     .optional()
     .isLength({ min: 6, max: 6 })
-    .withMessage('Token must be 6 digits'),
+    .isNumeric()
+    .withMessage('Token must be exactly 6 digits'),
   body('backupCode')
     .optional()
     .isLength({ min: 8, max: 8 })
@@ -533,7 +553,8 @@ router.post('/generate-backup-codes', protect, requireEmailVerification, [
     if (backupCode) {
       twoFactorValid = user.verifyBackupCode(backupCode);
     } else if (token) {
-      twoFactorValid = user.verify2FAToken(token);
+      const cleanToken = token.toString().replace(/\D/g, '');
+      twoFactorValid = user.verify2FAToken(cleanToken);
     } else {
       return res.status(400).json({
         success: false,
