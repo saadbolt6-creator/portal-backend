@@ -348,11 +348,12 @@ const seedHierarchyData = async () => {
         hl.name as level_name,
         h.parent_id,
         h.id,
-        COUNT(DISTINCT hd.device_id) as device_count,
+        COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT dd.id) as data_points
       FROM hierarchy h
       JOIN company c ON h.company_id = c.id
       JOIN hierarchy_level hl ON h.level_id = hl.id
+       LEFT JOIN device d ON h.id = d.hierarchy_id
       LEFT JOIN device_data dd ON d.device_id = dd.device_id
       GROUP BY c.name, h.name, hl.name, h.parent_id, h.id, hl.level_order
       ORDER BY c.name, hl.level_order, h.name
@@ -391,7 +392,7 @@ const seedHierarchyData = async () => {
       FROM company c
       LEFT JOIN hierarchy h ON c.id = h.company_id
       LEFT JOIN hierarchy_level hl ON h.level_id = hl.id
-      LEFT JOIN device d ON d.device_id = d.id
+       LEFT JOIN device d ON h.id = d.hierarchy_id
       LEFT JOIN device_data dd ON d.id = dd.device_id
       GROUP BY c.name
       ORDER BY c.name
